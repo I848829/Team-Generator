@@ -1,10 +1,12 @@
 import csv
+import sys
 import itertools
 from player import Player
 
 playerList = []
-ifile = open('resource/questionnaire.csv', "rb")
+ifile = open('resource/ICSVTeamOuting.csv', "rb")
 reader = csv.reader(ifile)
+num_teams = 6
 
 
 def extractActivities(activitiesColumn):
@@ -20,11 +22,14 @@ def subtract(list_a):
     return list_b
 
 
-def checkValidityActivity(team_a, team_b, activity):
-    team_a_activity_num = getNumOfPlayerForActivity(team_a, activity)
-    team_b_activity_num = getNumOfPlayerForActivity(team_b, activity)
+def checkValidityActivity(teams, activity):
+    maximum = -sys.maxint - 1
+    minimum = sys.maxint
+    for team in teams:
+        maximum = max(maximum, getNumOfPlayerForActivity(team, activity))
+        minimum = min(minimum, getNumOfPlayerForActivity(team, activity))
 
-    return abs(team_a_activity_num-team_b_activity_num) < 2
+    return maximum-minimum < 2
 
 
 def getNumOfPlayerForActivity(team, activity):
@@ -38,21 +43,29 @@ def getNumOfPlayerForActivity(team, activity):
 
 def getFemaleNumber(team):
     number = 0
-    for plyaer in team:
-        if player.gender == 'f':
+    for player in team:
+        if player.gender == 'Female':
             number += 1
     return number
 
 
-def checkValidityGender(team_a, team_b):
-    team_a_female_num = getFemaleNumber(team_a)
-    team_b_female_num = getFemaleNumber(team_b)
+def checkValidityGender(teams):
+    maximum = -sys.maxint - 1
+    minimum = sys.maxint
+    for team in teams:
+        maximum = max(maximum, getFemaleNumber(team))
+        minimum = min(minimum, getFemaleNumber(team))
 
-    return abs(team_a_female_num-team_b_female_num) < 2
+    return maximum-minimum < 2
 
 
-def checkValidity(team_a, team_b):
-    return checkValidityActivity(team_a, team_b, 'Basketball') and checkValidityActivity(team_a, team_b, 'Volleyball') and checkValidityActivity(team_a, team_b, 'Soccer') and checkValidityGender(team_a, team_b)
+def checkValidity(teams, activities):
+    if not checkValidityGender(teams):
+        return False
+    for activity in activities:
+        if not checkValidityActivity(teams, activity):
+            return False
+    return True
 
 
 rownum = 0
@@ -67,11 +80,11 @@ for row in reader:
         activities = []
 
         for col in row:
-            if colnum == 2:
+            if colnum == 1:
                 name = col
             elif colnum == 3:
                 activities = extractActivities(col)
-            elif colnum == 7:
+            elif colnum == 2:
                 gender = col
 
             colnum += 1
@@ -84,23 +97,20 @@ for row in reader:
 
 ifile.close()
 
-combinationList = list(itertools.combinations(playerList, len(playerList)/2))
-
-for combination in combinationList:
-    team_b = subtract(combination)
-    if checkValidity(combination, team_b):
-        print "----- Team A -----"
-        print "Volleyball: ", getNumOfPlayerForActivity(combination, 'Volleyball')
-        print "Basketball: ", getNumOfPlayerForActivity(combination, 'Basketball')
-        print "Soccer: ", getNumOfPlayerForActivity(combination, 'Soccer')
-        print "#####"
-        for player in combination:
-            print player.name
-        print "----- Team B -----"
-        print "Volleyball: ", getNumOfPlayerForActivity(team_b, 'Volleyball')
-        print "Basketball: ", getNumOfPlayerForActivity(team_b, 'Basketball')
-        print "Soccer: ", getNumOfPlayerForActivity(team_b, 'Soccer')
-        print "#####"
-        for player in team_b:
-            print player.name
+count = 0
+activities = ['Soccer', 'Basketball', 'Ultimate Frisbee']
+permutations = itertools.permutations(playerList)
+for permutation in permutations:
+    teams = [permutation[i::num_teams] for i in range(num_teams)]
+    if checkValidity(teams, activities):
+        for j in range(len(teams)):
+            print "----- Team ", j, " -----"
+            for activity in activities:
+                print activity, ": ", getNumOfPlayerForActivity(teams[j], activity)
+            print "Female: ", getFemaleNumber(teams[j])
+            for member in teams[j]:
+                print member.name
         break
+    count += 1
+    if count % 1000 == 0:
+        print count
